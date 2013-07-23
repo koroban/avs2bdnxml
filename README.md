@@ -102,6 +102,7 @@ Input has to be an AviSynth script with RGBA as output colorspace
                                [on=1, off=0]
   -b, --buffer-opt <integer>   Optimize PG buffer size by image
                                splitting. [on=1, off=0]
+  -F, --forced <integer>       mark all subtitles as forced [on=1, off=0]
 ```
 
 

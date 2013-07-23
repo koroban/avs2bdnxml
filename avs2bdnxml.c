@@ -15,6 +15,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *----------------------------------------------------------------------------
+ * Version 2.09
+ *   - Added parameter -F to mark all subtitles forced
+ *
  * Version 2.08
  *   - Fix PNG filename references when used with timecode offsets
  *
@@ -603,7 +606,7 @@ void mk_timecode (int frame, int fps, char *buf) /* buf must have length 12 (inc
 void print_usage ()
 {
 	fprintf(stderr,
-		"avs2bdnxml 2.08\n\n"
+		"avs2bdnxml 2.09\n\n"
 		"Usage: avs2bdnxml [options] -o output input\n\n"
 		"Input has to be an AviSynth script with RGBA as output colorspace\n\n"
 		"  -o, --output <string>        Output file in BDN XML format\n"
