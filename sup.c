@@ -194,13 +194,13 @@ static void write_pcs_start (FILE *fh, int start_time, int dts, int follower, in
 	fwrite(&pcss, sizeof(pcss), 1, fh);
 }
 
-static void write_pcs_start_obj (FILE *fh, int picture, int window, int x_off, int y_off)
+static void write_pcs_start_obj (FILE *fh, int picture, int window, int x_off, int y_off, int forced)
 {
 	sup_pcs_start_obj_t pcsso;
 
 	pcsso.picture = picture;
 	pcsso.window = window;
-	pcsso.forced = 0;
+	pcsso.forced = (forced ? 64 : 0);
 	pcsso.x_off = x_off;
 	pcsso.y_off = y_off;
 
@@ -513,7 +513,7 @@ void destroy_si (subtitle_info_t *si)
 	free(si);
 }
 
-void write_subtitle (sup_writer_t *sw, uint8_t **rle, int *rle_len, int num_crop, rect_t *crops, uint32_t *pal, int start, int end, int new_composition)
+void write_subtitle (sup_writer_t *sw, uint8_t **rle, int *rle_len, int num_crop, rect_t *crops, uint32_t *pal, int start, int end, int new_composition, int forced)
 {
 	uint32_t frame_ts, window_ts, decode_ts;
 	uint32_t window_ts_list[2], decode_ts_list[2];
@@ -594,7 +594,7 @@ void write_subtitle (sup_writer_t *sw, uint8_t **rle, int *rle_len, int num_crop
 	/* Write PCSS */
 	write_pcs_start(sw->fh, start_ts, dts, follower, num_crop, sw->im_w, sw->im_h, sw->fps_id, sw->comp_num);
 	for (i = 0; i < num_crop; i++)
-		write_pcs_start_obj(sw->fh, sw->picture_offset + i, in_window[i], crops[i].x, crops[i].y);
+		write_pcs_start_obj(sw->fh, sw->picture_offset + i, in_window[i], crops[i].x, crops[i].y, forced);
 
 	/* Write WDS */
 	ts = start_ts - window_ts; /* Can be very slightly off, possible rounding error (FIXME: fixed?) */
@@ -701,7 +701,7 @@ void write_composition (sup_writer_t *sw)
 		}
 		last_num_crop = si->num_crop;
 		memcpy(last_crops, si->crops, si->num_crop * sizeof(rect_t));
-		write_subtitle(sw, si->rle, si->rle_len, si->num_crop, si->crops, si->pal, si->start, si->end, new_composition);
+		write_subtitle(sw, si->rle, si->rle_len, si->num_crop, si->crops, si->pal, si->start, si->end, new_composition, si->forced);
 		new_composition = 0;
 		si_list_delete(sw->sil);
 		destroy_si(si);
@@ -735,7 +735,7 @@ void write_composition (sup_writer_t *sw)
 	sw->buffer = 0;
 }
 
-subtitle_info_t *collect_si (sup_writer_t *sw, uint8_t *im, int num_crop, rect_t *crops, uint32_t *pal, int start, int end)
+subtitle_info_t *collect_si (sup_writer_t *sw, uint8_t *im, int num_crop, rect_t *crops, uint32_t *pal, int start, int end, int forced)
 {
 	subtitle_info_t *si = malloc(sizeof(subtitle_info_t));
 	int i;
@@ -752,6 +752,7 @@ subtitle_info_t *collect_si (sup_writer_t *sw, uint8_t *im, int num_crop, rect_t
 		si->rle[i] = rl_encode(im, sw->im_w, sw->im_h, si->crops[i], &(si->rle_len[i]));
 	}
 	memcpy(si->pal, pal, 256 * sizeof(uint32_t));
+    si->forced = forced;
 
 	return si;
 }
@@ -774,7 +775,7 @@ void close_sup_writer (sup_writer_t *sw)
 
 IMPLEMENT_LIST(si, subtitle_info_t)
 
-void write_sup (sup_writer_t *sw, uint8_t *im, int num_crop, rect_t *crops, uint32_t *pal, int start, int end, int strict)
+void write_sup (sup_writer_t *sw, uint8_t *im, int num_crop, rect_t *crops, uint32_t *pal, int start, int end, int strict, int forced)
 {
 	rect_t tmp;
 	int buffer_increase;
@@ -831,6 +832,6 @@ void write_sup (sup_writer_t *sw, uint8_t *im, int num_crop, rect_t *crops, uint
 		}
 	}
 
-	si_list_insert_after(sw->sil, collect_si(sw, im, num_crop, crops, pal, start, end));
+	si_list_insert_after(sw->sil, collect_si(sw, im, num_crop, crops, pal, start, end, forced));
 }
 

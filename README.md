@@ -66,6 +66,44 @@ avs2bdnxml -t Undefined -l und -v 1080p -f 23.976 -a1 -p1 -b0 -m3 -u0 -e0 -n0 -z
 
 **Don't use BDSupEdit or BDSup2Sub if you enabled -b for splitting images in multiple parts!**
 
+Commandline Parameters
+----------------------
+
+```
+Usage: avs2bdnxml [options] -o output input
+
+Input has to be an AviSynth script with RGBA as output colorspace
+
+  -o, --output <string>        Output file in BDN XML format
+                               For SUP/PGS output, use a .sup extension
+  -j, --seek <integer>         Start processing at this frame, first is 0
+  -c, --count <integer>        Number of input frames to process
+  -t, --trackname <string>     Name of track, like: Undefined
+  -l, --language <string>      Language code, like: und
+  -v, --video-format <string>  Either of: 480i, 480p,  576i,
+                                          720p, 1080i, 1080p
+  -f, --fps <float>            Either of: 23.976, 24, 25, 29.97, 50, 59.94
+  -x, --x-offset <integer>     X offset, for use with partial frames.
+  -y, --y-offset <integer>     Y offset, for use with partial frames.
+  -d, --t-offset <string>      Offset timecodes by this many frames or
+                               given non-drop timecode (HH:MM:SS:FF).
+  -s, --split-at <integer>     Split events longer than this, in frames.
+                               Disabled when 0, which is the default.
+  -m, --min-split <integer>    Minimum length of line segment after split.
+  -e, --even-y <integer>       Enforce even Y coordinates. [on=1, off=0]
+  -a, --autocrop <integer>     Automatically crop output. [on=1, off=0]
+  -p, --palette <integer>      Output 8bit palette PNG. [on=1, off=0]
+  -n, --null-xml <integer>     Allow output of empty XML files. [on=1, off=0]
+  -z, --stricter <integer>     Stricter checks in the SUP writer. May lead to
+                               less optimized buffer use, but might raise
+                               compatibility. [on=1, off=0]
+  -u, --ugly <integer>         Allow splitting images in ugly ways.
+                               Might improve buffer problems, but is ugly.
+                               [on=1, off=0]
+  -b, --buffer-opt <integer>   Optimize PG buffer size by image
+                               splitting. [on=1, off=0]
+```
+
 
 Detail informations on [doom9](http://forum.doom9.org/showthread.php?t=146493)
 

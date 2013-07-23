@@ -155,6 +155,7 @@
 #include "auto_split.h"
 #include "palletize.h"
 #include "sup.h"
+#include "ass.h"
 #include "abstract_lists.h"
 
 /* AVIS input code taken from muxers.c from the x264 project (GPLv2 or later).
@@ -632,7 +633,8 @@ void print_usage ()
 		"                               Might improve buffer problems, but is ugly.\n"
 		"                               [on=1, off=0]\n"
 		"  -b, --buffer-opt <integer>   Optimize PG buffer size by image\n"
-		"                               splitting. [on=1, off=0]\n\n"
+		"                               splitting. [on=1, off=0]\n"
+        "  -F, --forced <integer>       mark all subtitles as forced [on=1, off=0]\n\n"
 		"Example:\n"
 		"  avs2bdnxml -t Undefined -l und -v 1080p -f 23.976 -a1 -p1 -b0 -m3 \\\n"
 		"    -u0 -e0 -n0 -z0 -o output.xml input.avs\n"
@@ -714,12 +716,13 @@ typedef struct event_s
 	int start_frame;
 	int end_frame;
 	int graphics;
+    int forced;
 	crop_t c[2];
 } event_t;
 
 STATIC_LIST(event, event_t)
 
-void add_event_xml_real (event_list_t *events, int image, int start, int end, int graphics, crop_t *crops)
+void add_event_xml_real (event_list_t *events, int image, int start, int end, int graphics, crop_t *crops, int forced)
 {
 	event_t *new = calloc(1, sizeof(event_t));
 	new->image_number = image;
@@ -728,45 +731,46 @@ void add_event_xml_real (event_list_t *events, int image, int start, int end, in
 	new->graphics = graphics;
 	new->c[0] = crops[0];
 	new->c[1] = crops[1];
+    new->forced = forced;
 	event_list_insert_after(events, new);
 }
 
-void add_event_xml (event_list_t *events, int split_at, int min_split, int start, int end, int graphics, crop_t *crops)
+void add_event_xml (event_list_t *events, int split_at, int min_split, int start, int end, int graphics, crop_t *crops, int forced)
 {
 	int image = start;
 	int d = end - start;
 
 	if (!split_at)
-		add_event_xml_real(events, image, start, end, graphics, crops);
+		add_event_xml_real(events, image, start, end, graphics, crops, forced);
 	else
 	{
 		while (d >= split_at + min_split)
 		{
 			d -= split_at;
-			add_event_xml_real(events, image, start, start + split_at, graphics, crops);
+			add_event_xml_real(events, image, start, start + split_at, graphics, crops, forced);
 			start += split_at;
 		}
 		if (d)
-			add_event_xml_real(events, image, start, start + d, graphics, crops);
+			add_event_xml_real(events, image, start, start + d, graphics, crops, forced);
 	}
 }
 
-void write_sup_wrapper (sup_writer_t *sw, uint8_t *im, int num_crop, crop_t *crops, uint32_t *pal, int start, int end, int split_at, int min_split, int stricter)
+void write_sup_wrapper (sup_writer_t *sw, uint8_t *im, int num_crop, crop_t *crops, uint32_t *pal, int start, int end, int split_at, int min_split, int stricter, int forced)
 {
 	int d = end - start;
 
 	if (!split_at)
-		write_sup(sw, im, num_crop, crops, pal, start, end, stricter);
+		write_sup(sw, im, num_crop, crops, pal, start, end, stricter, forced);
 	else
 	{
 		while (d >= split_at + min_split)
 		{
 			d -= split_at;
-			write_sup(sw, im, num_crop, crops, pal, start, start + split_at, stricter);
+			write_sup(sw, im, num_crop, crops, pal, start, start + split_at, stricter, forced);
 			start += split_at;
 		}
 		if (d)
-			write_sup(sw, im, num_crop, crops, pal, start, start + d, stricter);
+			write_sup(sw, im, num_crop, crops, pal, start, start + d, stricter, forced);
 	}
 }
 
@@ -820,6 +824,7 @@ int main (int argc, char *argv[])
 	char *in_img = NULL, *old_img = NULL, *tmp = NULL, *out_buf = NULL;
 	char *intc_buf = NULL, *outtc_buf = NULL;
 	char *drop_frame = NULL;
+    char *mark_forced_string = "0";
 	char png_dir[MAX_PATH + 1] = {0};
 	crop_t crops[2];
 	pic_t pic;
@@ -853,6 +858,7 @@ int main (int argc, char *argv[])
 	int xml_output = 0;
 	int allow_empty = 0;
 	int stricter = 0;
+    int mark_forced = 0;
 	sup_writer_t *sw = NULL;
 	avis_input_t *avis_hnd;
 	stream_info_t *s_info = malloc(sizeof(stream_info_t));
@@ -888,11 +894,12 @@ int main (int argc, char *argv[])
 			, {"ugly",         required_argument, 0, 'u'}
 			, {"null-xml",     required_argument, 0, 'n'}
 			, {"stricter",     required_argument, 0, 'z'}
+			, {"forced",       required_argument, 0, 'F'}
 			, {0, 0, 0, 0}
 			};
 			int option_index = 0;
 
-			c = getopt_long(argc, argv, "o:j:c:t:l:v:f:x:y:d:b:s:m:e:p:a:u:n:z:", long_options, &option_index);
+			c = getopt_long(argc, argv, "o:j:c:t:l:v:f:x:y:d:b:s:m:e:p:a:u:n:z:F:", long_options, &option_index);
 			if (c == -1)
 				break;
 			switch (c)
@@ -959,6 +966,9 @@ int main (int argc, char *argv[])
 					break;
 				case 'z':
 					stricter_string = optarg;
+					break;
+				case 'F':
+					mark_forced_string = optarg;
 					break;
 				default:
 					print_usage();
@@ -1028,6 +1038,7 @@ int main (int argc, char *argv[])
 	min_split = parse_int(minimum_split, "min-split", NULL);
 	if (!min_split)
 		min_split = 1;
+	mark_forced = parse_int(mark_forced_string, "forced", NULL);
 
 	/* TODO: Sanity check video_format and frame_rate. */
 
@@ -1160,13 +1171,13 @@ int main (int argc, char *argv[])
 			if (sup_output)
 			{
 				assert(pal != NULL);
-				write_sup_wrapper(sw, (uint8_t *)out_buf, n_crop, crops, pal, start_frame + to, i + to, split_at, min_split, stricter);
+				write_sup_wrapper(sw, (uint8_t *)out_buf, n_crop, crops, pal, start_frame + to, i + to, split_at, min_split, stricter, mark_forced);
 				if (!xml_output)
 					free(pal);
 				pal = NULL;
 			}
 			if (xml_output)
-				add_event_xml(events, split_at, min_split, start_frame + to, i + to, n_crop, crops);
+				add_event_xml(events, split_at, min_split, start_frame + to, i + to, n_crop, crops, mark_forced);
 			end_frame = i;
 			have_line = 0;
 		}
@@ -1224,14 +1235,14 @@ int main (int argc, char *argv[])
 		if (sup_output)
 		{
 			assert(pal != NULL);
-			write_sup_wrapper(sw, (uint8_t *)out_buf, n_crop, crops, pal, start_frame + to, i - 1 + to, split_at, min_split, stricter);
+			write_sup_wrapper(sw, (uint8_t *)out_buf, n_crop, crops, pal, start_frame + to, i - 1 + to, split_at, min_split, stricter, mark_forced);
 			if (!xml_output)
 				free(pal);
 			pal = NULL;
 		}
 		if (xml_output)
 		{
-			add_event_xml(events, split_at, min_split, start_frame + to, i - 1 + to, n_crop, crops);
+			add_event_xml(events, split_at, min_split, start_frame + to, i - 1 + to, n_crop, crops, mark_forced);
 			free(pal);
 			pal = NULL;
 		}
@@ -1298,13 +1309,13 @@ int main (int argc, char *argv[])
 			{
 				mk_timecode(event->start_frame, fps, intc_buf);
 				mk_timecode(event->end_frame, fps, outtc_buf);
-				
+
 				if (auto_cut && event->end_frame == frames - 1)
 				{
 					mk_timecode(event->end_frame + 1, fps, outtc_buf);
 				}
-				
-				fprintf(fh, "<Event Forced=\"False\" InTC=\"%s\" OutTC=\"%s\">\n", intc_buf, outtc_buf);
+
+				fprintf(fh, "<Event Forced=\"%s\" InTC=\"%s\" OutTC=\"%s\">\n", (event->forced ? "True" : "False"), intc_buf, outtc_buf);
 				for (i = 0; i < event->graphics; i++)
 				{
 					fprintf(fh, "<Graphic Width=\"%d\" Height=\"%d\" X=\"%d\" Y=\"%d\">%08d_%d.png</Graphic>\n", event->c[i].w, event->c[i].h, xo + event->c[i].x, yo + event->c[i].y, event->image_number - to, i);

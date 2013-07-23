@@ -31,6 +31,7 @@ typedef struct subtitle_info_s
 	int rle_len[2];
 	uint8_t *rle[2];
 	uint32_t pal[256];
+    int forced;
 } subtitle_info_t;
 
 DECLARE_LIST(si, subtitle_info_t)
@@ -64,7 +65,7 @@ typedef struct sup_writer_s
 sup_writer_t *new_sup_writer (char *filename, int im_w, int im_h, int fps_num, int fps_den);
 
 /* Write sup data for subtitle */
-void write_sup (sup_writer_t *sw, uint8_t *im, int num_crop, rect_t *crops, uint32_t *pal, int start, int end, int strict);
+void write_sup (sup_writer_t *sw, uint8_t *im, int num_crop, rect_t *crops, uint32_t *pal, int start, int end, int strict, int forced);
 
 /* Call this once at the end */
 void close_sup_writer (sup_writer_t *sw);
