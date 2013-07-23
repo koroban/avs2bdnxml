@@ -1,7 +1,7 @@
 CC=i586-mingw32msvc-gcc
 CFLAGS=-O3 -Iinc/ -Wall -DLE_ARCH
 LDFLAGS=-lpng -lz -lvfw32 -Llib/ -liberty
-OBJS=avs2bdnxml.o auto_split.o palletize.o sup.o sort.o
+OBJS=avs2bdnxml.o auto_split.o palletize.o sup.o sort.o ass.o
 ASMOBJS=frame-a.o
 EXE=avs2bdnxml.exe
 
